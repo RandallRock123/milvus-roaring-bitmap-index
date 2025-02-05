@@ -95,10 +95,15 @@ set( CMAKE_INSTALL_RPATH "/usr/lib" "${CMAKE_INSTALL_PREFIX}/lib" "${CMAKE_INSTA
 set( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE )
 
 # **************************** Dependencies ****************************
-list( APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/conan )
-include( ${CMAKE_BINARY_DIR}/conan/conanbuildinfo.cmake )
-set( CONAN_DISABLE_CHECK_COMPILER ON )
-conan_basic_setup( KEEP_RPATHS )
+# Disabled conan for direct build
+# list( APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/conan )
+# include( ${CMAKE_BINARY_DIR}/conan/conanbuildinfo.cmake )
+# set( CONAN_DISABLE_CHECK_COMPILER ON )
+# conan_basic_setup( KEEP_RPATHS )
+
+# Direct dependencies
+find_package(OpenMP REQUIRED)
+find_package(Threads REQUIRED)
 
 set( CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CONAN_PROTOBUF_ROOT})
 
