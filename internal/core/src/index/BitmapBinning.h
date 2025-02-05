@@ -1,12 +1,14 @@
 #pragma once
 #include <vector>
 #include <roaring/roaring.hh>
+#include "BitmapIndex.h"
 
 namespace milvus {
 namespace index {
 
 template<typename T>
 class BitmapBinning {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
 public:
     static constexpr size_t DEFAULT_BIN_SIZE = 1000;
     
