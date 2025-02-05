@@ -331,6 +331,12 @@ BitmapIndex<T>::DeserializeIndexMeta(const uint8_t* data_ptr,
 template <typename T>
 void
 BitmapIndex<T>::ChooseIndexLoadMode(int64_t index_length) {
+    if (total_num_rows_ >= LARGE_BITMAP_THRESHOLD) {
+        LOG_DEBUG("load bitmap index with roaring mode (large permission set)");
+        build_mode_ = BitmapIndexBuildMode::ROARING;
+        return;
+    }
+    
     if (index_length <= DEFAULT_BITMAP_INDEX_BUILD_MODE_BOUND) {
         LOG_DEBUG("load bitmap index with bitset mode");
         build_mode_ = BitmapIndexBuildMode::BITSET;
@@ -834,6 +840,22 @@ TargetBitmap
 BitmapIndex<T>::RangeForRoaring(const T value, const OpType op) {
     AssertInfo(is_built_, "index has not been built");
     TargetBitmap res(total_num_rows_, false);
+    
+    if (total_num_rows_ >= LARGE_BITMAP_THRESHOLD) {
+        BitmapBinning binning;
+        size_t target_bin = binning.GetBin(value);
+        auto bin_perms = binning.GetBinPermissions(target_bin);
+        
+        for (const auto& perm : bin_perms) {
+            auto it = data_.find(perm);
+            if (it != data_.end()) {
+                for (const auto& v : it->second) {
+                    res.set(v);
+                }
+            }
+        }
+        return res;
+    }
     if (ShouldSkip(value, value, op)) {
         return res;
     }

@@ -35,6 +35,8 @@ struct BitmapInfo {
     size_t size_;
 };
 
+constexpr size_t LARGE_BITMAP_THRESHOLD = 100000;
+
 enum class BitmapIndexBuildMode {
     ROARING,
     BITSET,
