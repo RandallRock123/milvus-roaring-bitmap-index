@@ -4,6 +4,12 @@
 
 using namespace milvus::index;
 
+#include <benchmark/benchmark.h>
+#include <random>
+#include "index/BitmapIndex.h"
+
+using namespace milvus::index;
+
 static void BM_BitmapRange(benchmark::State& state) {
     BitmapIndex<int64_t> index;
     const size_t num_rows = LARGE_BITMAP_THRESHOLD;
@@ -25,6 +31,29 @@ static void BM_BitmapRange(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_BitmapRange);
+
+static void BM_BitmapRangeInclusive(benchmark::State& state) {
+    BitmapIndex<int64_t> index;
+    const size_t num_rows = LARGE_BITMAP_THRESHOLD;
+    std::vector<int64_t> values(num_rows);
+    std::iota(values.begin(), values.end(), 0);
+    index.Build(values.data(), num_rows);
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int64_t> dist(0, num_rows - 1);
+    
+    for (auto _ : state) {
+        state.PauseTiming();
+        int64_t lower = dist(gen);
+        int64_t upper = std::min(lower + num_rows/10, num_rows - 1);
+        state.ResumeTiming();
+        
+        auto result = index.Range(lower, true, upper, true);
+        benchmark::DoNotOptimize(result);
+    }
+}
+BENCHMARK(BM_BitmapRangeInclusive);
 
 static void BM_BitmapInOperation(benchmark::State& state) {
     BitmapIndex<int64_t> index;
@@ -49,3 +78,5 @@ static void BM_BitmapInOperation(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_BitmapInOperation);
+
+BENCHMARK_MAIN();

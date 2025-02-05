@@ -842,7 +842,7 @@ BitmapIndex<T>::RangeForRoaring(const T value, const OpType op) {
     TargetBitmap res(total_num_rows_, false);
     
     if (total_num_rows_ >= LARGE_BITMAP_THRESHOLD) {
-        BitmapBinning binning;
+        BitmapBinning<T> binning;
         size_t target_bin = binning.GetBin(value);
         auto bin_perms = binning.GetBinPermissions(target_bin);
         
@@ -1060,6 +1060,56 @@ BitmapIndex<T>::RangeForRoaring(const T lower_value,
         return res;
     }
     if (ShouldSkip(lower_value, upper_value, OpType::Range)) {
+        return res;
+    }
+
+    if (total_num_rows_ >= LARGE_BITMAP_THRESHOLD) {
+        BitmapBinning<T> binning;
+        size_t start_bin = binning.GetBin(lower_value);
+        size_t end_bin = binning.GetBin(upper_value);
+        
+        for (size_t bin = start_bin; bin <= end_bin; ++bin) {
+            auto [bin_start, bin_end] = binning.GetBinRange(bin);
+            auto bin_mask = binning.GetBinMask(bin);
+            
+            auto lb = data_.begin();
+            auto ub = data_.end();
+
+            if (bin == start_bin && !lb_inclusive) {
+                lb = std::upper_bound(data_.begin(), data_.end(),
+                    std::make_pair(lower_value, roaring::Roaring()),
+                    [](const auto& lhs, const auto& rhs) {
+                        return lhs.first < rhs.first;
+                    });
+            } else {
+                lb = std::lower_bound(data_.begin(), data_.end(),
+                    std::make_pair(bin_start, roaring::Roaring()),
+                    [](const auto& lhs, const auto& rhs) {
+                        return lhs.first < rhs.first;
+                    });
+            }
+
+            if (bin == end_bin && !ub_inclusive) {
+                ub = std::lower_bound(data_.begin(), data_.end(),
+                    std::make_pair(upper_value, roaring::Roaring()),
+                    [](const auto& lhs, const auto& rhs) {
+                        return lhs.first < rhs.first;
+                    });
+            } else {
+                ub = std::upper_bound(data_.begin(), data_.end(),
+                    std::make_pair(bin_end, roaring::Roaring()),
+                    [](const auto& lhs, const auto& rhs) {
+                        return lhs.first < rhs.first;
+                    });
+            }
+
+            for (; lb != ub; ++lb) {
+                roaring::Roaring result = lb->second & bin_mask;
+                for (auto v : result) {
+                    res.set(v);
+                }
+            }
+        }
         return res;
     }
 

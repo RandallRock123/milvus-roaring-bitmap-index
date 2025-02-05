@@ -5,6 +5,7 @@
 namespace milvus {
 namespace index {
 
+template<typename T>
 class BitmapBinning {
 public:
     static constexpr size_t DEFAULT_BIN_SIZE = 1000;
@@ -15,15 +16,32 @@ public:
         return permission_id / bin_size_;
     }
     
-    std::vector<size_t> GetBinPermissions(size_t bin_id) const {
-        std::vector<size_t> permissions;
+    std::pair<size_t, size_t> GetBinRange(size_t bin_id) const {
         size_t start = bin_id * bin_size_;
         size_t end = std::min(start + bin_size_, LARGE_BITMAP_THRESHOLD);
-        permissions.reserve(end - start);
+        return {start, end};
+    }
+    
+    roaring::Roaring GetBinMask(size_t bin_id) const {
+        roaring::Roaring mask;
+        auto [start, end] = GetBinRange(bin_id);
         for (size_t i = start; i < end; ++i) {
-            permissions.push_back(i);
+            mask.add(i);
         }
-        return permissions;
+        return mask;
+    }
+    
+    std::vector<T> GetBinPermissions(size_t bin_id) const {
+        std::vector<T> perms;
+        auto [start, end] = GetBinRange(bin_id);
+        for (size_t i = start; i < end; ++i) {
+            perms.push_back(static_cast<T>(i));
+        }
+        return perms;
+    }
+    
+    size_t GetNumBins() const {
+        return (LARGE_BITMAP_THRESHOLD + bin_size_ - 1) / bin_size_;
     }
     
 private:
